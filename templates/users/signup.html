@@ -8,8 +8,10 @@
     {% if error %}
     <p class="alert alert-danger">{{error}}</p>
     {% endif %}
-    <form action="{% url 'signup' %}" method="POST">
+    
+    <form method="POST" action="{% url 'signup' %}">
         {% csrf_token %}
+
         <div class="form-group">
             <input class="form-control" type="text" name="username" placeholder="Username" required="true" />
         </div>
