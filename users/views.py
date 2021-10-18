@@ -12,10 +12,12 @@ from django.contrib.auth.models import User
 # Local Apps
 from users.models import Profile
 
-# Create your views here.
+# Forms
+from users.forms import ProfileForm
 
 
 def login_view(request):
+    """Login View"""
     if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['password']
@@ -52,6 +54,8 @@ def singup_view(request):
         user.last_name = request.POST['last_name']
         user.email = request.POST['email']
 
+        user.save()
+
         # Create Profile from user
         profile = Profile(user=user)
         profile.save()
@@ -70,4 +74,29 @@ def logout_view(request):
 @login_required
 def update_profile(request):
     """Update User Profile"""
-    return render(request, 'users/update_profile.html')
+    # Get Profile
+    profile = request.user.profile
+
+    if request.method == 'POST':
+        # Create Form
+        form = ProfileForm(request.POST, request.FILES)
+        if form.is_valid():
+            # Get data from form
+            data = form.cleaned_data
+
+            # Asign Profile info
+            profile.website = data['website']
+            profile.biography = data['biography']
+            profile.phone_number = data['phone_number']
+            profile.picture = data['picture']
+
+            # Save profile changes
+            profile.save()
+
+            return redirect('update_profile')
+
+    else:
+        form = ProfileForm()
+
+    context = {'profile': profile, 'user': request.user, 'form': form}
+    return render(request, 'users/update_profile.html', context=context)
