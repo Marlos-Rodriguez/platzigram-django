@@ -1,3 +1,4 @@
+"""Post's Models"""
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -5,6 +6,7 @@ from users.models import Profile
 
 
 class Post(models.Model):
+    """Main Post Model"""
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
 

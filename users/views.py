@@ -1,74 +1,78 @@
+"""User Views"""
+
 # Django
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect
-
-# Erros Exception
-from django.db.utils import IntegrityError
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth import views as auth_views
+from django.shortcuts import get_object_or_404, render, redirect
+from django.views.generic.base import TemplateView
+from django.urls import reverse
 
 # Models
 from django.contrib.auth.models import User
-
-# Local Apps
-from users.models import Profile
+from posts.models import Post
 
 # Forms
-from users.forms import ProfileForm
+from users.forms import ProfileForm, SignupForm
 
 
-def login_view(request):
+class UserDetailView(LoginRequiredMixin, TemplateView):
+    """User Detail view"""
+    template_name = 'users/detail.html'
+    slug_field = 'username'
+    slug_url_kwarg = 'username'
+    queryset = User.objects.all()
+    context_object_name = 'user'
+
+    def get_context_data(self, **kwargs):
+        """Add user's posts to context."""
+        context = super().get_context_data(**kwargs)
+        print(self.kwargs['username'])
+        user = get_object_or_404(User, username=self.kwargs['username'])
+        context['posts'] = Post.objects.filter(user=user).order_by('-created')
+        return context
+
+
+class LoginView(auth_views.Loginview):
     """Login View"""
-    if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
-        user = authenticate(request, username=username, password=password)
 
-        if user is not None:
-            login(request, user)
-            return redirect('feed')
-        else:
-            return render(request, 'users/login.html', {'error': 'Invalid username or password'})
-    return render(request, 'users/login.html')
+    template_name = 'users/login.html'
+    redirect_authenticated_user = True
+
+# def login_view(request):
+#     """Login View"""
+#     if request.method == 'POST':
+#         username = request.POST['username']
+#         password = request.POST['password']
+#         user = authenticate(request, username=username, password=password)
+
+#         if user is not None:
+#             login(request, user)
+#             return redirect('posts:feed')
+#         else:
+#             return render(request, 'users/login.html', {'error': 'Invalid username or password'})
+#     return render(request, 'users/login.html')
 
 
 def singup_view(request):
     """Sign Up view"""
     if request.method == 'POST':
-        # Get User data
-        username = request.POST['username']
-        password = request.POST['password']
-        password_confirmation = request.POST['password_confirmation']
-
-        if password != password_confirmation:
-            return render(request, 'users/signup.html', {'error': 'Password confirmation does not match'})
-
-        # Create user or return error
-        try:
-            user = User.objects.create_user(
-                username=username, password=password)
-        except IntegrityError:
-            return render(request, 'users/signup.html', {'error': 'Username is already in user'})
-
-        # Add aditional Info
-        user.first_name = request.POST['first_name']
-        user.last_name = request.POST['last_name']
-        user.email = request.POST['email']
-
-        user.save()
-
-        # Create Profile from user
-        profile = Profile(user=user)
-        profile.save()
-
-        return redirect('login')
-    return render(request, 'users/signup.html')
+        form = SignupForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('users:login')
+    else:
+        form = SignupForm()
+    print(form)
+    return render(request=request, template_name='users/signup.html', context={'form': form})
 
 
 @login_required
 def logout_view(request):
     """LogOut User"""
     logout(request)
-    return redirect('login')
+    return redirect('users:login')
 
 
 @login_required
@@ -93,7 +97,9 @@ def update_profile(request):
             # Save profile changes
             profile.save()
 
-            return redirect('update_profile')
+            url = reverse('users:detail', kwargs={
+                          'username': request.user.username})
+            return redirect(url)
 
     else:
         form = ProfileForm()
